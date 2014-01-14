@@ -1,10 +1,9 @@
 // UCLA CS 111 Lab 1 command reading
 #include "command.h"
 #include "command-internals.h"
-
 #include <error.h>
-
 #include <stdio.h>
+#include <stdlib.h>
 
 /* FIXME: You may need to add #include directives, macro definitions,
    static function definitions, etc.  */
@@ -21,11 +20,31 @@ struct token_list_element {
   char* body;
 };
 
+int num_tokens = 0;
+
+void add_token_list_element(struct token_list_element **token_array) {
+  num_tokens++;
+  printf("%i\n", num_tokens);
+  struct token_list_element *tmp = (struct token_list_element *) realloc(token_array, (num_tokens) * sizeof(struct token_list_element));
+}
+
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
          void *get_next_byte_argument)
 {
-  printf("%c\n", get_next_byte(get_next_byte_argument));
+  int byte_value;
+
+  struct token_list_element *token_array = (struct token_list_element *) malloc(sizeof(struct token_list_element)); 
+
+  while((byte_value = get_next_byte(get_next_byte_argument)) > 0) {
+    switch(byte_value) {
+      case '|': {
+        printf("%c\n", byte_value);
+        add_token_list_element(&token_array);
+        break;
+      }
+    }
+  }
   error (1, 0, "command reading not yet implemented");
   return 0;
 }
