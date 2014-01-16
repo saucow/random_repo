@@ -1,1 +1,1 @@
-cat < a || ls foo > b
+cat < a || ls foo > b asdf

@@ -38,15 +38,8 @@ char* create_one_length_string(char a) {
   return temp;
 }
 
-struct token* create_list(int val, char body, token_id type)
-{
-    printf("\n creating list with headnode as [%d]\n",val);
+struct token* create_list(int val, char body, token_id type) {
     struct token *ptr = (struct token*)malloc(sizeof(struct token));
-    if(NULL == ptr)
-    {
-        printf("\n Node creation failed \n");
-        return NULL;
-    }
     ptr->val = val;
     ptr->next = NULL;
     ptr->body = create_one_length_string(body);
@@ -56,18 +49,18 @@ struct token* create_list(int val, char body, token_id type)
     return ptr;
 }
 
-struct token* add_to_list(int val, char body, int add_to_end, token_id type)
-{
+struct token* add_to_list(int val, char body, int add_to_end, token_id type) {
     i++;
-    if(NULL == head)
-    {
-        return (create_list(val, body, type));
+    if(NULL == head) {
+      return (create_list(val, body, type));
     }
 
+    /*
     if(add_to_end == 0)
         printf("\n Adding node to end of list with value [%d]\n",val);
     else
         printf("\n Adding node to beginning of list with value [%d]\n",val);
+    */
 
     struct token *ptr = (struct token*)malloc(sizeof(struct token));
     if(NULL == ptr)
@@ -80,27 +73,22 @@ struct token* add_to_list(int val, char body, int add_to_end, token_id type)
     ptr->next = NULL;
     ptr->id = type;
 
-    if(add_to_end == 1)
-    {
+    if(add_to_end == 1) {
         curr->next = ptr;
         curr = ptr;
     }
-    else
-    {
+    else {
         ptr->next = head;
         head = ptr;
     }
-          printf("SETTING CURR ID: %i\n", curr->id);
     return ptr;
 }
 
-void print_list(void)
-{
+void print_list(void) {
     struct token *ptr = head;
 
-    printf("\n -------Printing list Start------- \n");
-    while(ptr != NULL)
-    {
+    printf("\n -------Print list------- \n");
+    while(ptr != NULL) {
        //printf("\n [%d] \n",ptr->id);
        //printf("\n [%d] \n",ptr->val);
         if(ptr->body != NULL) {
@@ -108,19 +96,9 @@ void print_list(void)
         }
         ptr = ptr->next;
     }
-    printf("\n -------Printing list End------- \n");
+    printf("\n -------------- \n");
 
     return;
-}
-
-char* str_cat_char(char* string, char new_char) //helper function to append a char to a str
-{
-
-    int length = strlen(string)+1;
-    string = checked_realloc(string, length);
-    string[length-1] = new_char;
-    string[length] = 0;
-    return string;
 }
 
 command_stream_t
@@ -185,7 +163,7 @@ make_command_stream (int (*get_next_byte) (void *),
           new_string[str_length] = '\0';
           curr->body = new_string;
         }
-        else { //Only 1  &???
+        else { //Only 1 throw error
 
         }
         break;
@@ -228,34 +206,36 @@ make_command_stream (int (*get_next_byte) (void *),
 }
 
 
-command_t look_for_simple() { //Fourth highest scan precedence
-  if(scan_head->id == word) {
+command_t look_for_simple(struct token *ptr) { //Fourth highest scan precedence
+  if(ptr->id == word) {
     command_t simple_command = malloc(sizeof(struct command));
+    simple_command->type = SIMPLE_COMMAND;
     simple_command->input = 0;
     simple_command->output = 0;
-    simple_command->u.word = &scan_head->body;
+    simple_command->u.word = &ptr->body;
 
-    scan_head = scan_head->next;
+    ptr = ptr->next;
     //Input
-    if(scan_head->id == in) {
+    if(ptr->id == in) {
       printf("\nfound <");
-      scan_head = scan_head->next;
-      if(scan_head->id == word) {
-        simple_command->input = scan_head->body;
-        printf("\ninput: %s\n", curr->body);
+      ptr = ptr->next;
+      if(ptr->id == word) {
+        simple_command->input = ptr->body;
+        printf("\ninput: %s\n", ptr->body);
         return simple_command;
       }
       else {
         printf("\nnot word throw error");
       }
     }
+    print_list();
     //Output
-    if(scan_head->id == out) {
+    if(ptr->id == out) {
       printf("\nfound >");
-      scan_head = scan_head->next;
-      if(scan_head->id == word) {
-        simple_command->output = scan_head->body;
-        printf("\noutput: %s\n", curr->body);
+      ptr = ptr->next;
+      if(ptr->id == word) {
+        simple_command->output = ptr->body;
+        printf("\noutput: %s\n", ptr->body);
         printf("\ngot output");
         return simple_command;
       }
@@ -268,41 +248,74 @@ command_t look_for_simple() { //Fourth highest scan precedence
 }
 
 command_t look_for_subshell() { //Third highest scan precedence
-  if(scan_head->id == start_subshell) {
+  struct token *ptr = scan_head;
+  if(ptr->id == start_subshell) {
 
   }
   return NULL;
 }
 
-command_t look_for_pipe() { //Second highest scan precedence
+command_t look_for_pipe(struct token *ptr) { //Second highest scan precedence
+  //Scan lower precedence 
   command_t command_result = look_for_subshell();
   if(command_result == NULL) {
-    command_t command_result = look_for_simple();
+    command_result = look_for_simple(ptr);
   }
-  return NULL;
+  printf("\ndone looking for first part of pipe");
+  //Look for Pipe
+  ptr = ptr->next;
+  while(ptr != NULL) {
+    if(ptr->id == pipe) {
+      command_t second_result = look_for_subshell();
+      if(second_result == NULL) {
+        second_result = look_for_simple(ptr);
+      }
+      command_t pipe_command = malloc(sizeof(struct command));
+      pipe_command->type = PIPE_COMMAND;
+      pipe_command->input = 0;
+      pipe_command->output = 0;
+      pipe_command->u.command[1]= second_result;
+      pipe_command->u.command[0]= command_result;
+      return pipe_command;
+    }
+    ptr = ptr->next;
+  }
+  return command_result;
 }
 
 command_t read_command_stream (command_stream_t s) {
     scan_head = head;
-    while(scan_head != NULL) {
-      command_t command_result = look_for_pipe();
+    if(scan_head != NULL) {
+
+      command_t command_result = look_for_pipe(scan_head);
       scan_head = scan_head->next;
 
-      if(scan_head == NULL) {
-        break; 
-      }
+      while(scan_head != NULL) {
+        struct token *inner_while_ptr = scan_head;
+        if(scan_head->id == or || scan_head->id == and) { //Scan highest precedence
 
-      while(scan_head->id == or || scan_head->id == and) { //Scan highest precedence
-        command_t second_result = look_for_pipe();
+          struct token *ptr = scan_head;
+          ptr = ptr->next;
+          if(ptr == NULL) {
+            break; 
+          }
+
+          command_t second_result = look_for_pipe(ptr);
+          printf("\ndone looking for second part of pipe");
+
+         command_t command_and_or  = malloc(sizeof(struct command));
+         command_and_or->type = OR_COMMAND;
+         if(ptr->id == and) {
+           command_and_or->type = AND_COMMAND;
+         }
+         command_and_or->u.command[0] = command_result;
+         command_and_or->u.command[1] = second_result;
+         return command_and_or;
+          
+        } 
         scan_head = scan_head->next;
-
-        if(scan_head == NULL) {
-          break; 
-        }
-
-      } 
+      }
     }
-  /* FIXME: Replace this with your implementation too.  */
-  //error (1, 0, "command reading not yet implemented");
+  //Exit with error
   return 0;
 }
