@@ -17,6 +17,12 @@ typedef enum {
   semicolon, pipe, and, or, start_subshell, close_subshell, in, out, word, nil
 }token_id;
 
+struct command_stream {
+	int size;
+	int processed;
+	struct token* tokens;
+};
+
 struct token
 {
     int val;
@@ -128,7 +134,7 @@ make_command_stream (int (*get_next_byte) (void *),
   int byte_value;
   int next_byte_value = 0;
   struct token *ptr = NULL;
-
+  command_stream_t c_stream = malloc(sizeof(command_stream_t));
   byte_value = get_next_byte(get_next_byte_argument);
 
   while(byte_value > 0) {
@@ -222,13 +228,74 @@ make_command_stream (int (*get_next_byte) (void *),
     byte_value = get_next_byte(get_next_byte_argument);
   }
   print_list();
-  error (1, 0, "command reading not yet implemented");
-  return 0;
+  //error (1, 0, "command reading not yet implemented");
+  //c_stream->processed = 0;
+  //c_stream->tokens = ptr;
+  //c_stream->size = i;
+  printf("%i", i);
+  return c_stream;
+}
+
+command_t simple_command(int start, int stop, command_stream_t s){
+  //declaring and preallocating stuffs
+  int i, length = 0;
+  struct token * tokens = s->tokens;
+  command_t command = checked_malloc(sizeof(command));
+  command->type = SIMPLE_COMMAND;
+  command->u.word = checked_malloc(sizeof(char*));
+  //loops thru current stream of only words ins and outs
+  for (i = start; i < stop + 1; i++){
+	if (tokens[i].id == in){
+		command->input = tokens[i].body;
+		i++;
+	}
+	else if (tokens[i].id == out){
+		command->output = tokens[i].body;
+		i++;
+	}
+	if (i >= stop || tokens[i].id != word) 
+		error (1, 0, "command error: you're bad at redirecting");
+	command->u.word[length] = tokens[i].body;
+	length++;
+	command->u.word = checked_realloc(command->u.word, (length + 1)*sizeof(char*));
+  }
+  //ends words with null and return
+  command->u.word[length] = NULL;
+  return command;
 }
 
 command_t
 read_command_stream (command_stream_t s)
 {
+  //necessary variables
+  int index = s->processed, i, cur_token_index;
+  int newline = 0;
+  struct token* tokens = s->tokens;
+  command_t command = checked_malloc(sizeof(command));
+  command_t aux_command, rec_command;
+  //loop to find current "stopping token"
+  for (i = index; i < s->size; i++)
+	if (tokens[i].id != in || tokens[i].id != out || tokens[i].id != word) break;
+  if (i == s->size) newline = 1;
+  cur_token_index = i;
+  //creates simples command on tokens between processed and cur_token
+  if (tokens[cur_token_index].id != start_subshell){
+	aux_command = simple_command(index, cur_token_index, s);
+  //case close subshell and end of command
+  if (tokens[cur_token_index].id == close_subshell || newline != 0)
+	return aux_command;
+  }
+  //recurse on the tokens after cur_token
+  s->processed = cur_token_index + 1;
+  rec_command = read_command_stream(s);
+  //case subshell
+  if (tokens[cur_token_index].id == start_subshell){
+	command->type = SUBSHELL_COMMAND;
+	command->u.subshell_command = rec_command;
+	return command;
+  }
+
+
   /* FIXME: Replace this with your implementation too.  */
   error (1, 0, "command reading not yet implemented");
   return 0;
