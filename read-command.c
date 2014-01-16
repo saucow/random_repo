@@ -26,8 +26,10 @@ struct token
 };
 
 int i = 0;
+
 struct token *head = NULL;
 struct token *curr = NULL;
+struct token *scan_head = NULL;
 
 char* create_one_length_string(char a) {
   char* temp = checked_malloc(2 * sizeof(char));
@@ -222,14 +224,85 @@ make_command_stream (int (*get_next_byte) (void *),
     byte_value = get_next_byte(get_next_byte_argument);
   }
   print_list();
-  error (1, 0, "command reading not yet implemented");
   return 0;
 }
 
-command_t
-read_command_stream (command_stream_t s)
-{
+
+command_t look_for_simple() { //Fourth highest scan precedence
+  if(scan_head->id == word) {
+    command_t simple_command = malloc(sizeof(struct command));
+    simple_command->input = 0;
+    simple_command->output = 0;
+    simple_command->u.word = &scan_head->body;
+
+    scan_head = scan_head->next;
+    //Input
+    if(scan_head->id == in) {
+      printf("\nfound <");
+      scan_head = scan_head->next;
+      if(scan_head->id == word) {
+        simple_command->input = scan_head->body;
+        printf("\ninput: %s\n", curr->body);
+        return simple_command;
+      }
+      else {
+        printf("\nnot word throw error");
+      }
+    }
+    //Output
+    if(scan_head->id == out) {
+      printf("\nfound >");
+      scan_head = scan_head->next;
+      if(scan_head->id == word) {
+        simple_command->output = scan_head->body;
+        printf("\noutput: %s\n", curr->body);
+        printf("\ngot output");
+        return simple_command;
+      }
+      else {
+        printf("\nnot word throw error");
+      }
+    }
+  }
+  return NULL;
+}
+
+command_t look_for_subshell() { //Third highest scan precedence
+  if(scan_head->id == start_subshell) {
+
+  }
+  return NULL;
+}
+
+command_t look_for_pipe() { //Second highest scan precedence
+  command_t command_result = look_for_subshell();
+  if(command_result == NULL) {
+    command_t command_result = look_for_simple();
+  }
+  return NULL;
+}
+
+command_t read_command_stream (command_stream_t s) {
+    scan_head = head;
+    while(scan_head != NULL) {
+      command_t command_result = look_for_pipe();
+      scan_head = scan_head->next;
+
+      if(scan_head == NULL) {
+        break; 
+      }
+
+      while(scan_head->id == or || scan_head->id == and) { //Scan highest precedence
+        command_t second_result = look_for_pipe();
+        scan_head = scan_head->next;
+
+        if(scan_head == NULL) {
+          break; 
+        }
+
+      } 
+    }
   /* FIXME: Replace this with your implementation too.  */
-  error (1, 0, "command reading not yet implemented");
+  //error (1, 0, "command reading not yet implemented");
   return 0;
 }

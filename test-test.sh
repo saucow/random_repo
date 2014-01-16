@@ -1,2 +1,1 @@
-word |asdf #comment
-temp && after and
+cat < a || ls foo > b
